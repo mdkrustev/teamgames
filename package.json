@@ -1,5 +1,10 @@
 {
-    "scripts": {
-        "start": "npm run dev"
-    }
+  "scripts": {
+    "dev:client": "cd tgclient && npm run dev",
+    "dev:server": "cd tgserver && npx wrangler dev",
+    "dev": "node dev.mjs",
+    "deploy:client": "cd tgclient && npm run deploy",
+    "deploy:server": "cd tgserver && npx wrangler deploy",
+    "deploy": "npm run deploy:server && npm run deploy:client"
+  }
 }
