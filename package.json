@@ -3,8 +3,9 @@
     "dev:client": "cd tgclient && npm run dev",
     "dev:server": "cd tgserver && npx wrangler dev",
     "dev": "node dev.mjs",
-    "deploy:client": "cd tgclient && npm run deploy",
+    "build": "cd tgclient && npm run build",
     "deploy:server": "cd tgserver && npx wrangler deploy",
+    "deploy:client": "cd tgclient && npm run deploy",
     "deploy": "npm run deploy:server && npm run deploy:client"
   }
 }
