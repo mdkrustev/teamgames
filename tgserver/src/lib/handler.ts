@@ -1,74 +1,76 @@
 // src/lib/handler.ts
-//import { routeMap } from "../routeMap"; // ⚠️ кръгова зависимост? Не, защото routeMap не зависи от handler
 
+// ===== ТИПОВЕ =====
 
 export interface HandlerContext {
   request: Request;
-  env: Env;              // вместо `any` — използвай типизиран `Env`
+  env: Env;
   ctx: ExecutionContext;
-  body?: unknown;        // опционално, само за POST/PATCH и т.н.
+  body?: unknown;
 }
 
-// ... (запази Get, Post, Handler, HandlerContext от преди)
+export type Handler = (ctx: HandlerContext) => any | Promise<any>;
 
-// Помощна функция за метод
-function getHandlerMethod(handler: any): string | undefined {
-  return handler?.__method;
-}
-
-// 🔑 Главната навигационна функция
-export async function routeNavigator(
+// Тип за обвивката (това, което се слага в routeMap)
+export type RouteHandler = (
   request: Request,
   env: Env,
   ctx: ExecutionContext
-): Promise<Response> {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  const method = request.method;
+) => Promise<Response>;
 
-  const route = routeMap[path];
-
-  if (!route) {
-    return new Response("Not Found", { status: 404 });
-  }
-
-  const handler = route.handler;
-  const handlerMethod = getHandlerMethod(handler);
-
-  if (!handlerMethod) {
-    return new Response("Handler missing method metadata", { status: 500 });
-  }
-
-  if (method !== handlerMethod) {
-    return new Response("Method Not Allowed", { status: 405 });
-  }
-
-  try {
-    let body: unknown | undefined;
-    if (method === "POST") {
-      const contentType = request.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        body = await request.json();
-      }
-    }
-
-    const ctxData: HandlerContext = { request, env, ctx, body };
-
-    const result = await handler(ctxData);
-
-    return new Response(JSON.stringify(result), {
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("Handler error:", err);
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : "Internal Server Error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
+export interface RouteEntry {
+  handler: RouteHandler & { __method: "GET" | "POST" };
 }
+
+export type RouteMap = Record<string, RouteEntry>;
+
+// ===== ПОМОЩНИЦИ ЗА ДЕФИНИРАНЕ НА ХЕНДЛЪРИ =====
+
+async function getJsonBody(request: Request): Promise<unknown | undefined> {
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return await request.json();
+  }
+  return undefined;
+}
+
+export const Get = (userHandler: Handler) =>
+  Object.assign(
+    async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+      try {
+        const result = await userHandler({ request, env, ctx });
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(
+          JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    },
+    { __method: "GET" as const } // ⚠️ __method, не method!
+  );
+
+export const Post = (userHandler: Handler) =>
+  Object.assign(
+    async (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => {
+      try {
+        const body = await getJsonBody(request);
+        const result = await userHandler({ request, env, ctx, body });
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(
+          JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    },
+    { __method: "POST" as const } // ⚠️ __method
+  );
+
+// ===== НЕ МОЖЕ ДА ИМПОРТВАШ routeMap ТУК! =====
+// За да избегнем кръгова зависимост, routeNavigator НЕ се дефинира тук.
+// Той трябва да е в отделен файл или в index.ts.

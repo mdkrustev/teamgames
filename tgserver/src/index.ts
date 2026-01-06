@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { routeNavigator } from "./lib/handler";
+import { routeNavigator } from "./lib/route";
 
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
@@ -40,30 +40,5 @@ export class MyDurableObject extends DurableObject<Env> {
 }
 
 export default {
-	/**
-	 * This is the standard fetch handler for a Cloudflare Worker
-	 *
-	 * @param request - The request submitted to the Worker from the client
-	 * @param env - The interface to reference bindings declared in wrangler.jsonc
-	 * @param ctx - The execution context of the Worker
-	 * @returns The response to be sent back to the client
-	 */
-	async fetch(request, env, ctx): Promise<Response> {
-
-
-		return await routeNavigator(request, env, ctx);
-	
-		// Create a stub to open a communication channel with the Durable Object
-		// instance named "foo".
-		//
-		// Requests from all Workers to the Durable Object instance named "foo"
-		// will go to a single remote Durable Object instance.
-		//const stub = env.MY_DURABLE_OBJECT.getByName("foo");
-
-		// Call the `sayHello()` RPC method on the stub to invoke the method on
-		// the remote Durable Object instance.
-		//const greeting = await stub.sayHello("world" + request);
-
-		return Response.json({id: 22})
-	},
-} satisfies ExportedHandler<Env>;
+  fetch: routeNavigator,
+};
